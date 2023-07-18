@@ -2,6 +2,7 @@
 #include "linked_list.h"
 #pragma once
 
+#define CORE_NUMBER 2
 
 typedef struct {
 	ListItem list;
@@ -12,8 +13,8 @@ typedef struct {
 struct FakeOS;
 typedef void (*ScheduleFn)(struct FakeOS* os, void* args);
 
-typedef struct FakeOS{
-	FakePCB* running;
+typedef struct FakeOS {
+	FakePCB **running;
 	ListHead ready;
 	ListHead waiting;
 	int timer;
