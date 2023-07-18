@@ -10,7 +10,7 @@ FakeOS os;
 typedef struct
 {
 	int quantum;
-} SchedRRArgs;
+} schedSJFArgs;
 
 void print_ready(ListItem *items, int quantum)
 {
@@ -25,6 +25,9 @@ void print_ready(ListItem *items, int quantum)
 	printf("\n");
 }
 
+// calculate the prediction of the process with the shortest prediction time and return it
+// prediction time is calculated as a weighted average of the previous prediction and the current burst time 
+// (or quantum if the burst time is greater than the quantum)
 FakePCB *prediction(ListItem *items, int quantum)
 {
 	FakePCB *proc;
@@ -49,19 +52,28 @@ FakePCB *prediction(ListItem *items, int quantum)
 	return shortProcess;
 }
 
-void schedRR(FakeOS *os, void *args_)
+/**
+ * @brief Simulate a step of the fake OS process scheduler SJF 
+ * 
+ * @param os 
+ * @param args_ 
+ */
+void schedSJF(FakeOS *os, void *args_)
 {
-	SchedRRArgs *args = (SchedRRArgs *)args_;
+	schedSJFArgs *args = (schedSJFArgs *)args_;
 
 	// look for the first process in ready
 	// if none, return
 	if (!os->ready.first)
 		return;
 
+	// look for the process with the shortest prediction time 
 	FakePCB *pcb = prediction(os->ready.first, args->quantum);
 
+	// remove it from the ready list
 	pcb = (FakePCB *)List_detach(&os->ready, (ListItem *)pcb);
 
+	// put it in running list (first empty slot)
 	int i = 0;
 	FakePCB **running = os->running;
 	while (running[i])
@@ -90,10 +102,10 @@ void schedRR(FakeOS *os, void *args_)
 int main(int argc, char **argv)
 {
 	FakeOS_init(&os);
-	SchedRRArgs srr_args;
+	schedSJFArgs srr_args;
 	srr_args.quantum = 5;
 	os.schedule_args = &srr_args;
-	os.schedule_fn = schedRR;
+	os.schedule_fn = schedSJF;
 
 	for (int i = 1; i < argc; ++i)
 	{
@@ -109,6 +121,8 @@ int main(int argc, char **argv)
 		}
 	}
 	printf("num processes in queue %d\n", os.processes.size);
+	// run the simulation until all processes are terminated and all queues are empty
+	// memcmp returns 0 if the two arrays are equal (in this case, all the pointers are NULL)
 	FakePCB *temp[CORE_NUMBER] = {0};
 	while (memcmp(os.running, temp, sizeof(FakePCB *) * CORE_NUMBER) ||
 		   os.ready.first ||

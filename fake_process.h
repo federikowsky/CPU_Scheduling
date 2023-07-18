@@ -1,7 +1,7 @@
 #pragma once
 #include "linked_list.h"
 
-#define PREDICTION_WEIGHT 0.125
+#define PREDICTION_WEIGHT 0.125 // 1/8 
 
 typedef enum
 {
@@ -15,7 +15,7 @@ typedef struct
 	ListItem list;
 	ResourceType type;
 	int duration;
-	double previousPrediction;
+	double previousPrediction; // used by SJF to predict the duration of the next event
 } ProcessEvent;
 
 // fake process

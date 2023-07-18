@@ -14,6 +14,11 @@
 #define ANSI_CYAN "\x1b[36m"
 #define ANSI_RESET "\x1b[0m"
 
+/**
+ * @brief Initialize the fake OS structure
+ *
+ * @param os
+ */
 void FakeOS_init(FakeOS *os)
 {
 	os->running = calloc(CORE_NUMBER, sizeof(FakePCB *));
@@ -24,6 +29,12 @@ void FakeOS_init(FakeOS *os)
 	os->schedule_fn = 0;
 }
 
+/**
+ * @brief Create a Process object
+ *
+ * @param p
+ * @param filename
+ */
 void FakeOS_createProcess(FakeOS *os, FakeProcess *p)
 {
 	// sanity check
@@ -78,6 +89,12 @@ void FakeOS_createProcess(FakeOS *os, FakeProcess *p)
 	}
 }
 
+/**
+ * @brief Check if all cores are taken by a process
+ *
+ * @param running
+ * @return int
+ */
 int cpu_full(FakePCB **running)
 {
 	int i = -1;
@@ -89,6 +106,11 @@ int cpu_full(FakePCB **running)
 	return 1;
 }
 
+/**
+ * @brief Simulate a step of the fake OS
+ *
+ * @param os
+ */
 void FakeOS_simStep(FakeOS *os)
 {
 
@@ -108,7 +130,7 @@ void FakeOS_simStep(FakeOS *os)
 		aux = aux->next;
 		if (new_process)
 		{
-			printf(ANSI_ORANGE"\tcreate pid:%d\n"ANSI_RESET, new_process->pid);
+			printf(ANSI_CYAN "\tcreate pid:%d\n" ANSI_RESET, new_process->pid);
 			new_process = (FakeProcess *)List_detach(&os->processes, (ListItem *)new_process);
 			FakeOS_createProcess(os, new_process);
 			free(new_process);
@@ -122,20 +144,20 @@ void FakeOS_simStep(FakeOS *os)
 		FakePCB *pcb = (FakePCB *)aux;
 		aux = aux->next;
 		ProcessEvent *e = (ProcessEvent *)pcb->events.first;
-		printf(ANSI_YELLOW"\twaiting pid: %d\n"ANSI_RESET, pcb->pid);
+		printf(ANSI_MAGENTA "\twaiting pid: %d\n" ANSI_RESET, pcb->pid);
 		assert(e->type == IO);
 		e->duration--;
-		printf(ANSI_YELLOW"\t\tremaining time:%d\n"ANSI_RESET, e->duration);
+		printf(ANSI_MAGENTA "\t\tremaining time:%d\n" ANSI_RESET, e->duration);
 		if (e->duration == 0)
 		{
-			printf(ANSI_YELLOW"\t\tend burst\n"ANSI_RESET);
+			printf(ANSI_MAGENTA "\t\tend burst\n" ANSI_RESET);
 			List_popFront(&pcb->events);
 			free(e);
 			List_detach(&os->waiting, (ListItem *)pcb);
 			if (!pcb->events.first)
 			{
 				// kill process
-				printf(ANSI_RED"\t\tend process\n"ANSI_RESET);
+				printf(ANSI_RED "\t\tend process\n" ANSI_RESET);
 				free(pcb);
 			}
 			else
@@ -145,11 +167,11 @@ void FakeOS_simStep(FakeOS *os)
 				switch (e->type)
 				{
 				case CPU:
-					printf(ANSI_CYAN"\t\tmove to ready\n"ANSI_RESET);
+					printf(ANSI_ORANGE "\t\tmove to ready\n" ANSI_RESET);
 					List_pushBack(&os->ready, (ListItem *)pcb);
 					break;
 				case IO:
-					printf(ANSI_MAGENTA"\t\tmove to waiting\n"ANSI_RESET);
+					printf(ANSI_YELLOW "\t\tmove to waiting\n" ANSI_RESET);
 					List_pushBack(&os->waiting, (ListItem *)pcb);
 					break;
 				}
@@ -161,32 +183,38 @@ void FakeOS_simStep(FakeOS *os)
 	// if event over, destroy event
 	// and reschedule process
 	// if last event, destroy running
+
+	// scan running list, and put in ready all items whose event terminates
 	FakePCB **running;
 	int i = -1;
 	while (++i < CORE_NUMBER)
 	{
+		// call schedule, if defined
 		running = &os->running[i];
+
+		// if no process is running, skip this core
 		if (!(*running))
 		{
-			printf(ANSI_GREEN"\trunning pid: -1 on core: %d\n"ANSI_RESET, i);
+			printf(ANSI_GREEN "\trunning pid: -1 on core: %d\n" ANSI_RESET, i);
 			continue;
 		}
-		printf(ANSI_GREEN"\trunning pid: %d on core: %d\n"ANSI_RESET, (*running)->pid ? (*running)->pid : -1, i);
+		printf(ANSI_GREEN "\trunning pid: %d on core: %d\n" ANSI_RESET, (*running)->pid ? (*running)->pid : -1, i);
 		if ((*running)->pid)
 		{
 			ProcessEvent *e = (ProcessEvent *)(*running)->events.first;
 			assert(e->type == CPU);
 			e->duration--;
-			printf(ANSI_GREEN"\t\tremaining time:%d\n"ANSI_RESET, e->duration);
+			printf(ANSI_GREEN "\t\tremaining time:%d\n" ANSI_RESET, e->duration);
 			if (e->duration == 0)
 			{
-				printf(ANSI_GREEN"\t\tend burst\n"ANSI_RESET);
+				printf(ANSI_GREEN "\t\tend burst\n" ANSI_RESET);
 				List_popFront(&(*running)->events);
 				free(e);
 				if (!(*running)->events.first)
 				{
-					printf(ANSI_RED"\t\tend process\n"ANSI_RESET);
+					printf(ANSI_RED "\t\tend process\n" ANSI_RESET);
 					free(*running); // kill process
+					// set running to 0 to signal that the core is free
 					*running = 0;
 				}
 				else
@@ -195,12 +223,12 @@ void FakeOS_simStep(FakeOS *os)
 					switch (e->type)
 					{
 					case CPU:
-						printf(ANSI_CYAN"\t\tmove to ready\n"ANSI_RESET);
-						List_pushBack(&os->ready, (ListItem *) &(**running));
+						printf(ANSI_ORANGE "\t\tmove to ready\n" ANSI_RESET);
+						List_pushBack(&os->ready, (ListItem *)*running);
 						break;
 					case IO:
-						printf(ANSI_MAGENTA"\t\tmove to waiting\n"ANSI_RESET);
-						List_pushBack(&os->waiting, (ListItem *) &(**running));
+						printf(ANSI_YELLOW "\t\tmove to waiting\n" ANSI_RESET);
+						List_pushBack(&os->waiting, (ListItem *)*running);
 						break;
 					}
 					*running = 0;
@@ -222,12 +250,15 @@ void FakeOS_simStep(FakeOS *os)
 		// put the first in ready to run
 		else if (!cpu_full(os->running) && os->ready.first)
 		{
-			FakePCB *temp = *os->running;
-			while (temp)
+			FakePCB **temp = os->running;
+			while (*temp)
 			{
-				if (!temp->pid)
-					temp = (FakePCB *)List_popFront(&os->ready);
-				temp++;
+				if (*temp && !(*temp)->pid)
+				{
+					*temp = (FakePCB *)List_popFront(&os->ready);
+					break;
+				}
+				(*temp)++;
 			}
 		}
 	}
