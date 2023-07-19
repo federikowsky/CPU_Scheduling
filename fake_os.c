@@ -214,8 +214,7 @@ void FakeOS_simStep(FakeOS *os)
 				{
 					printf(ANSI_RED "\t\tend process\n" ANSI_RESET);
 					free(*running); // kill process
-					// set running to 0 to signal that the core is free
-					*running = 0;
+					
 				}
 				else
 				{
@@ -231,8 +230,9 @@ void FakeOS_simStep(FakeOS *os)
 						List_pushBack(&os->waiting, (ListItem *)*running);
 						break;
 					}
-					*running = 0;
 				}
+				// set running to 0 to signal that the core is free
+				*running = 0;
 			}
 		}
 	}
@@ -268,4 +268,5 @@ void FakeOS_simStep(FakeOS *os)
 
 void FakeOS_destroy(FakeOS *os)
 {
+	free(os->running);
 }

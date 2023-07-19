@@ -131,4 +131,6 @@ int main(int argc, char **argv)
 	{
 		FakeOS_simStep(&os);
 	}
+	FakeOS_destroy(&os);
+
 }
