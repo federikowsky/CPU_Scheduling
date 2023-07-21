@@ -40,7 +40,6 @@ int FakeProcess_load(FakeProcess *p, const char *filename)
 			e->list.prev = e->list.next = 0;
 			e->type = CPU;
 			e->duration = duration;
-			e->previousPrediction = 0;
 			List_pushBack(&p->events, (ListItem *)e);
 			++num_events;
 			goto next_round;
@@ -53,7 +52,6 @@ int FakeProcess_load(FakeProcess *p, const char *filename)
 			e->list.prev = e->list.next = 0;
 			e->type = IO;
 			e->duration = duration;
-			e->previousPrediction = 0;
 			List_pushBack(&p->events, (ListItem *)e);
 			++num_events;
 			goto next_round;
@@ -75,7 +73,7 @@ int FakeProcess_save(const FakeProcess *p, const char *filename)
 		return -1;
 	fprintf(f, "PROCESS %d %d\n", p->pid, p->arrival_time);
 	ListItem *aux = p->events.first;
-	int num_events;
+	int num_events = 0;
 	while (aux)
 	{
 		ProcessEvent *e = (ProcessEvent *)aux;

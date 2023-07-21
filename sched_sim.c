@@ -31,20 +31,18 @@ void print_ready(ListItem *items, int quantum)
 FakePCB *prediction(ListItem *items, int quantum)
 {
 	FakePCB *proc;
-	ProcessEvent *e;
 	double shortPrediction = __DBL_MAX__;
 	FakePCB *shortProcess = NULL;
 	while ((proc = (FakePCB *)items) != NULL)
 	{
-		e = (ProcessEvent *)proc->events.first;
-		double currPrediction = PREDICTION_WEIGHT * ((e->duration < quantum) ? e->duration : quantum) +
-								(1 - PREDICTION_WEIGHT) * e->previousPrediction;
+		double currPrediction = PREDICTION_WEIGHT * ((proc->duration < quantum) ? proc->duration : quantum) +
+								(1 - PREDICTION_WEIGHT) * proc->previousPrediction;
 
 		if (currPrediction < shortPrediction)
 		{
 			shortPrediction = currPrediction;
 			shortProcess = proc;
-			e->previousPrediction = (e->duration < quantum) ? e->duration : quantum;
+			proc->previousPrediction = currPrediction;
 		}
 		items = items->next;
 	}
@@ -69,6 +67,8 @@ void schedSJF(FakeOS *os, void *args_)
 
 	// look for the process with the shortest prediction time 
 	FakePCB *pcb = prediction(os->ready.first, args->quantum);
+	if (pcb)
+		pcb->duration = 0;
 
 	// remove it from the ready list
 	pcb = (FakePCB *)List_detach(&os->ready, (ListItem *)pcb);
@@ -101,13 +101,18 @@ void schedSJF(FakeOS *os, void *args_)
 
 int main(int argc, char **argv)
 {
-	FakeOS_init(&os);
+	if (argc < 3)
+	{
+		printf("Usage: %s <num_cores> <process1> <process2> ...\n", argv[0]);
+		return 1;
+	}
+	FakeOS_init(&os, atoi(argv[1]));
 	schedSJFArgs srr_args;
 	srr_args.quantum = 5;
 	os.schedule_args = &srr_args;
 	os.schedule_fn = schedSJF;
 
-	for (int i = 1; i < argc; ++i)
+	for (int i = 2; i < argc; ++i)
 	{
 		FakeProcess new_process;
 		int num_events = FakeProcess_load(&new_process, argv[i]);
@@ -123,14 +128,16 @@ int main(int argc, char **argv)
 	printf("num processes in queue %d\n", os.processes.size);
 	// run the simulation until all processes are terminated and all queues are empty
 	// memcmp returns 0 if the two arrays are equal (in this case, all the pointers are NULL)
-	FakePCB *temp[CORE_NUMBER] = {0};
-	while (memcmp(os.running, temp, sizeof(FakePCB *) * CORE_NUMBER) ||
+	FakePCB **temp = malloc(sizeof(FakePCB *) * os.cores);
+	memset(temp, 0, sizeof(FakePCB *) * os.cores);
+	while (memcmp(os.running, temp, sizeof(FakePCB *) * os.cores) ||
 		   os.ready.first ||
 		   os.waiting.first ||
 		   os.processes.first)
 	{
 		FakeOS_simStep(&os);
 	}
+	free(temp);
 	FakeOS_destroy(&os);
 
 }

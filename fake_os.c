@@ -19,15 +19,31 @@
  *
  * @param os
  */
-void FakeOS_init(FakeOS *os)
+void FakeOS_init(FakeOS *os, int cores)
 {
-	os->running = calloc(CORE_NUMBER, sizeof(FakePCB *));
+	os->running = calloc(cores, sizeof(FakePCB *));
 	List_init(&os->ready);
 	List_init(&os->waiting);
 	List_init(&os->processes);
 	os->timer = 0;
 	os->schedule_fn = 0;
+	os->cores = cores;
 }
+
+void increaseDuration(FakeOS *os)
+{
+	FakePCB *pcb;
+	int i = -1;
+
+	pcb = *os->running;
+	while (++i < os->cores && pcb)
+	{
+		if (pcb->pid)
+			pcb->duration++;
+		pcb++;
+	}
+}
+
 
 /**
  * @brief Create a Process object
@@ -42,7 +58,7 @@ void FakeOS_createProcess(FakeOS *os, FakeProcess *p)
 	// we check that in the list of PCBs there is no
 	// pcb having the same pid
 	int i = -1;
-	while (++i < CORE_NUMBER)
+	while (++i < os->cores)
 	{
 		FakePCB *running = os->running[i];
 		assert((!running || running->pid != p->pid) && "pid taken");
@@ -69,6 +85,8 @@ void FakeOS_createProcess(FakeOS *os, FakeProcess *p)
 	new_pcb->list.next = new_pcb->list.prev = 0;
 	new_pcb->pid = p->pid;
 	new_pcb->events = p->events;
+	new_pcb->previousPrediction = 0;
+	new_pcb->duration = 0;
 
 	assert(new_pcb->events.first && "process without events");
 
@@ -95,10 +113,10 @@ void FakeOS_createProcess(FakeOS *os, FakeProcess *p)
  * @param running
  * @return int
  */
-int cpu_full(FakePCB **running)
+int cpu_full(FakePCB **running, int cores)
 {
 	int i = -1;
-	while (++i < CORE_NUMBER)
+	while (++i < cores)
 	{
 		if (!running[i] || !(*running[i]).pid)
 			return 0;
@@ -187,7 +205,7 @@ void FakeOS_simStep(FakeOS *os)
 	// scan running list, and put in ready all items whose event terminates
 	FakePCB **running;
 	int i = -1;
-	while (++i < CORE_NUMBER)
+	while (++i < os->cores)
 	{
 		// call schedule, if defined
 		running = &os->running[i];
@@ -238,17 +256,17 @@ void FakeOS_simStep(FakeOS *os)
 	}
 
 	i = -1;
-	while (++i < CORE_NUMBER)
+	while (++i < os->cores)
 	{
 		// call schedule, if defined
-		if (os->schedule_fn && !cpu_full(os->running))
+		if (os->schedule_fn && !cpu_full(os->running, os->cores))
 		{
 			(*os->schedule_fn)(os, os->schedule_args);
 		}
 
 		// if running not defined and ready queue not empty
 		// put the first in ready to run
-		else if (!cpu_full(os->running) && os->ready.first)
+		else if (!cpu_full(os->running, os->cores) && os->ready.first)
 		{
 			FakePCB **temp = os->running;
 			while (*temp)
@@ -263,6 +281,7 @@ void FakeOS_simStep(FakeOS *os)
 		}
 	}
 
+	increaseDuration(os);
 	++os->timer;
 }
 

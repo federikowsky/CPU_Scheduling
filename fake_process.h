@@ -15,7 +15,6 @@ typedef struct
 	ListItem list;
 	ResourceType type;
 	int duration;
-	double previousPrediction; // used by SJF to predict the duration of the next event
 } ProcessEvent;
 
 // fake process
