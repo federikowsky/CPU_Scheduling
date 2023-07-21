@@ -137,7 +137,9 @@ int main(int argc, char **argv)
 	{
 		FakeOS_simStep(&os);
 	}
+	memset(temp, 0, sizeof(FakePCB *) * os.cores);
 	free(temp);
+	temp = 0;
 	FakeOS_destroy(&os);
 
 }

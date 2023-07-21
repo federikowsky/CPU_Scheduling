@@ -35,12 +35,10 @@ void increaseDuration(FakeOS *os)
 	FakePCB *pcb;
 	int i = -1;
 
-	pcb = *os->running;
-	while (++i < os->cores && pcb)
+	while (++i < os->cores && (pcb = *(os->running + i)))
 	{
 		if (pcb->pid)
 			pcb->duration++;
-		pcb++;
 	}
 }
 
@@ -151,7 +149,9 @@ void FakeOS_simStep(FakeOS *os)
 			printf(ANSI_CYAN "\tcreate pid:%d\n" ANSI_RESET, new_process->pid);
 			new_process = (FakeProcess *)List_detach(&os->processes, (ListItem *)new_process);
 			FakeOS_createProcess(os, new_process);
+			memset(new_process, 0, sizeof(FakeProcess));
 			free(new_process);
+			new_process = 0;
 		}
 	}
 
@@ -170,13 +170,17 @@ void FakeOS_simStep(FakeOS *os)
 		{
 			printf(ANSI_MAGENTA "\t\tend burst\n" ANSI_RESET);
 			List_popFront(&pcb->events);
+			memset(e, 0, sizeof(ProcessEvent));
 			free(e);
+			e = 0;
 			List_detach(&os->waiting, (ListItem *)pcb);
 			if (!pcb->events.first)
 			{
 				// kill process
 				printf(ANSI_RED "\t\tend process\n" ANSI_RESET);
+				memset(pcb, 0, sizeof(FakePCB));
 				free(pcb);
+				pcb = 0;
 			}
 			else
 			{
@@ -227,11 +231,15 @@ void FakeOS_simStep(FakeOS *os)
 			{
 				printf(ANSI_GREEN "\t\tend burst\n" ANSI_RESET);
 				List_popFront(&(*running)->events);
+				memset(e, 0, sizeof(ProcessEvent));
 				free(e);
+				e = 0;
 				if (!(*running)->events.first)
 				{
 					printf(ANSI_RED "\t\tend process\n" ANSI_RESET);
+					memset(*running, 0, sizeof(FakePCB));
 					free(*running); // kill process
+					*running = 0;
 					
 				}
 				else
@@ -287,5 +295,7 @@ void FakeOS_simStep(FakeOS *os)
 
 void FakeOS_destroy(FakeOS *os)
 {
+	memset(os->running, 0, sizeof(FakePCB *) * os->cores);
 	free(os->running);
+	os->running = 0;
 }

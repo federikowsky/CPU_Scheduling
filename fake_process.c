@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "fake_process.h"
 
 #define LINE_LENGTH 1024
@@ -61,7 +62,11 @@ int FakeProcess_load(FakeProcess *p, const char *filename)
 		;
 	}
 	if (buffer)
+	{
+		memset(buffer, 0, line_length);
 		free(buffer);
+		buffer = 0;
+	}
 	fclose(f);
 	return num_events;
 }
